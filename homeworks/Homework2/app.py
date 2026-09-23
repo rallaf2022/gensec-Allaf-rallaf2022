@@ -9,6 +9,13 @@ architecture from the 02_LangChain/07_RAG examples instead of rewriting it:
 - 08_rag_docsearch.py: retrieve similar chunks from the same vector database
 - 09_rag_query.py: send retrieved context plus the user question to the LLM
 
+After each answer, the app also prints a NotebookLM-style Sources list.
+That list comes from the same retriever used by the RAG chain, so it shows
+the document files that were actually retrieved as context.
+
+Type /summary to generate a short study summary from retrieved documents.
+Type /help to list commands, or /documents to list loaded source files.
+
 Required environment variables:
     GOOGLE_API_KEY          API key used by ChatGoogleGenerativeAI
     GOOGLE_MODEL            Chat model name, for example gemini-2.0-flash
@@ -55,6 +62,14 @@ CSV_DIRECTORY = "rag_data/csv"
 # Same chunk settings as 07_rag_loaddb.py.
 CHUNK_SIZE = 10000
 CHUNK_OVERLAP = 10
+
+# Special terminal commands. /summary still uses retrieved document content.
+HELP_COMMAND = "/help"
+DOCUMENTS_COMMAND = "/documents"
+SUMMARY_COMMAND = "/summary"
+SUMMARY_QUERY = (
+    "main topics, important facts, and key ideas from the loaded documents"
+)
 
 
 def create_embedding_function():
@@ -107,12 +122,36 @@ Answer:"""
     )
 
 
+def create_summary_prompt():
+    """Return the prompt used by the /summary command."""
+    return ChatPromptTemplate.from_template(
+        """Create a short study summary from the retrieved documents.
+
+Write the output in exactly this format:
+
+Document Summary:
+<two or three sentences giving a short overview>
+
+Key Points:
+- <important point>
+- <important point>
+- <important point>
+
+Keep the summary concise and easy to read in a terminal.
+
+Context: {context}
+
+Summary:"""
+    )
+
+
 # Shared objects used by loading and querying. Created once at import time,
 # matching the script style of the course examples.
 vectorstore = create_vectorstore()
 retriever = vectorstore.as_retriever()
 llm = create_llm()
 prompt = create_prompt()
+summary_prompt = create_summary_prompt()
 
 
 def load_docs(docs):
@@ -209,14 +248,118 @@ rag_chain = (
 )
 
 
-def print_sources():
-    """Print the unique document sources stored in the vector database."""
+def get_loaded_document_sources():
+    """Return unique source file paths already stored in Chroma.
+
+    This only reads existing vector-store metadata. It does not reload
+    files or create new embeddings.
+    """
     document_data_sources = set()
     for doc_metadata in retriever.vectorstore.get()["metadatas"]:
         if doc_metadata and "source" in doc_metadata:
             document_data_sources.add(doc_metadata["source"])
-    for doc in document_data_sources:
+    return sorted(document_data_sources)
+
+
+def print_sources():
+    """Print the unique document sources stored in the vector database."""
+    for doc in get_loaded_document_sources():
         print(f"  {doc}")
+
+
+def print_help():
+    """Print the available terminal commands."""
+    print("Available commands:")
+    print("- /help - show commands")
+    print("- /documents - list loaded documents")
+    print("- /summary - generate a study summary")
+    print("- blank line - exit")
+
+
+def print_loaded_documents():
+    """Print unique source files currently stored in the vector database."""
+    print("Loaded Documents:")
+    sources = get_loaded_document_sources()
+    if not sources:
+        print("- No documents are stored yet")
+        return
+    for source in sources:
+        print(f"- {source}")
+
+
+def handle_command(line):
+    """Run a slash command. Return True if the input was a command.
+
+    Commands are handled here so regular questions still go to RAG.
+    """
+    command = line.strip()
+    if command == HELP_COMMAND:
+        print_help()
+        return True
+    if command == DOCUMENTS_COMMAND:
+        print_loaded_documents()
+        return True
+    if command == SUMMARY_COMMAND:
+        print_document_summary()
+        return True
+    return False
+
+
+def get_unique_sources(docs):
+    """Return each retrieved source file path only once, in first-seen order.
+
+    Retrieved chunks can come from the same file more than once. A set tracks
+    paths we have already shown so the Sources list stays easy to read.
+    """
+    unique_sources = []
+    seen_sources = set()
+    for doc in docs:
+        source = doc.metadata.get("source")
+        if source and source not in seen_sources:
+            seen_sources.add(source)
+            unique_sources.append(source)
+    return unique_sources
+
+
+def print_retrieved_sources(docs):
+    """Print the unique source files used as context for one answer."""
+    print("Sources:")
+    unique_sources = get_unique_sources(docs)
+    if not unique_sources:
+        print("- No sources retrieved")
+        return
+    for source in unique_sources:
+        print(f"- {source}")
+
+
+def answer_with_sources(question):
+    """Answer a question with rag_chain, then print the retrieved source files.
+
+    The existing RAG chain still creates the answer. The same retriever used
+    by that chain is called here so we can read each chunk's source metadata
+    and print a unique file list under the answer.
+    """
+    docs = retriever.invoke(question)
+    result = rag_chain.invoke(question)
+    print(f"Answer: {result}")
+    print_retrieved_sources(docs)
+
+
+def print_document_summary():
+    """Print a short study summary from documents already stored in Chroma.
+
+    This reuses the existing retriever, vector store, and LLM. A broad query
+    retrieves representative chunks, then the summary prompt asks the model
+    for an overview plus a few key points.
+    """
+    docs = retriever.invoke(SUMMARY_QUERY)
+    if not docs:
+        print("No documents were retrieved for the summary.")
+        return
+    result = (summary_prompt | llm | StrOutputParser()).invoke(
+        {"context": format_docs(docs)}
+    )
+    print(result)
 
 
 def require_environment_variables():
@@ -232,7 +375,7 @@ def require_environment_variables():
 
 
 def main():
-    """Load rag_data if needed, then answer questions from retrieved documents."""
+    """Load rag_data if needed, then answer questions and cite source files."""
     require_environment_variables()
     print("RAG prompt:", prompt)
     if is_vectorstore_empty():
@@ -244,14 +387,17 @@ def main():
         "Welcome to my RAG application.  Ask me a question and I will "
         "answer it from the documents in my database shown below"
     )
+    print("Type /help to see the available commands.")
     print_sources()
     while True:
         line = input("llm>> ")
-        if line:
-            result = rag_chain.invoke(line)
-            print(result)
-        else:
+        if not line:
             break
+        # Slash commands are handled first so questions stay unchanged.
+        if handle_command(line):
+            continue
+        # Keep the original RAG answer, then show cited source files.
+        answer_with_sources(line)
 
 
 if __name__ == "__main__":
