@@ -13,7 +13,8 @@ import os
 import sys
 from pathlib import Path
 
-from langchain.agents import create_agent
+from langch
+in.agents import create_agent
 from langchain_core.messages import ToolMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_mcp_adapters.client import MultiServerMCPClient
