@@ -1,0 +1,11 @@
+{"timestamp": "2026-01-01T09:00:00+00:00", "ip": "203.0.113.10", "username": "alice", "action": "login_failure"}
+{"timestamp": "2026-01-01T09:01:00+00:00", "ip": "203.0.113.10", "username": "alice", "action": "login_failure"}
+{"timestamp": "2026-01-01T09:02:00+00:00", "ip": "203.0.113.10", "username": "alice", "action": "login_failure"}
+{"timestamp": "2026-01-01T09:03:00+00:00", "ip": "203.0.113.10", "username": "alice", "action": "login_success"}
+{"timestamp": "2026-01-01T09:00:30+00:00", "ip": "198.51.100.7", "username": "bob", "action": "login_failure"}
+{"timestamp": "2026-01-01T09:20:30+00:00", "ip": "198.51.100.7", "username": "bob", "action": "login_failure"}
+{"timestamp": "2026-01-01T09:04:00+00:00", "ip": "2001:db8::1", "username": "carol", "action": "login_success"}
+{"timestamp": "2026-01-01T09:05:00+00:00", "ip": "2001:db8::1", "username": "carol", "action": "login_failure"}
+{"timestamp": "2026-01-01T09:06:00+00:00", "ip": "not-an-ip", "username": "mallory", "action": "login_failure"}
+{"timestamp": "2026-01-01 09:07:00", "ip": "192.0.2.5", "username": "dave", "action": "login_failure"}
+not-json

@@ -1,0 +1,53 @@
+FAU ID: rallaf2022
+Homework 06.3 verification
+
+Initial test run
+30 tests, 12 errors
+NameError: MIN_USERNAME_MIN was undefined
+
+After Cursor Prompt 2
+----------------------------------------------------------------------
+Ran 45 tests in 0.025s
+
+OK
+
+Sample file report
+{
+  "failures_per_ip": {
+    "198.51.100.7": 2,
+    "2001:db8::1": 1,
+    "203.0.113.10": 3
+  },
+  "rejected_records": 3,
+  "suspected_brute_force": [
+    {
+      "ip": "203.0.113.10",
+      "max_failures_in_window": 3,
+      "total_failures": 3,
+      "window_end": "2026-01-01T09:02:00+00:00",
+      "window_start": "2026-01-01T09:00:00+00:00"
+    }
+  ],
+  "threshold": 3,
+  "total_records": 11,
+  "valid_records": 8,
+  "window_seconds": 300
+}
+
+Threshold raised to 4
+Security log analysis
+Total records: 11
+Valid records: 8
+Rejected records: 3
+Brute-force rule: >= 4 failures within 300 seconds
+
+Failures per IP:
+  203.0.113.10: 3
+  198.51.100.7: 2
+  2001:db8::1: 1
+
+Suspected brute force:
+  (none)
+
+Blocked secret-like filename (exit code 2)
+Error: refusing to read a secret-like file
