@@ -1,3 +1,0 @@
-PENDING: Record a narrated screencast under five minutes with camera on initially.
-Upload it as an unlisted YouTube video, verify access in incognito, and replace
-this text with the real URL. See RECORDING_GUIDE.md. No recording is claimed.
